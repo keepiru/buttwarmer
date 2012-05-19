@@ -32,8 +32,8 @@ int putchr(char c, FILE *stream) { // stdio.h wants this to be public
 } // void putchr
 
 inline void pwm_init(void) {
-	TCCR0A = 1<<COM0A1 | 1<<COM0B1 | 1<<WGM00 ;
-	TCCR0B = 1<<CS02;
+	TCCR0A = 1<<COM0A1 | 1<<COM0B1 | 1<<WGM00 ; // PWM enable, mode
+	TCCR0B = 1<<CS02;                           // frequency
 	DDRD |= 1<<5;
 	DDRD |= 1<<6;
 } // void pwm_init
@@ -41,7 +41,7 @@ inline void pwm_init(void) {
 uint16_t adc_sample(uint8_t pin) {
         ADCSRA = 1<<ADEN | 1<<ADIE | 7 ; // 7 is the prescaler
         SMCR = 3 ;                       // Sleep mode ADC, enable
-        ADMUX = (1<<REFS0) | pin ;        // ref = vcc
+        ADMUX = (1<<REFS0) | pin ;       // ref = vcc
 	sleep_mode();
 	return ADCW;
 }
