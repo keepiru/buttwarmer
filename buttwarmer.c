@@ -10,7 +10,7 @@
 #define printf_kai(fmt, ...) printf_P(PSTR(fmt) , ##__VA_ARGS__)
 #define puts_kai(str) puts_P(PSTR(str))
 
-#define HYST 5
+#define HYST 3
 
 ISR(ADC_vect, ISR_NAKED) { asm("reti"); }
 
@@ -32,8 +32,8 @@ int putchr(char c, FILE *stream) { // stdio.h wants this to be public
 } // void putchr
 
 inline void pwm_init(void) {
-	TCCR0A = 1<<COM0A1 | 1<<COM0B1 | 1<<WGM00 ; // PWM enable, mode
-	TCCR0B = 1<<CS02;                           // frequency
+	TCCR0A = 1<<COM0A1 | 1<<COM0B1 | 1<<WGM00 | 1<<WGM01; // PWM enable, mode
+	TCCR0B = 1<<CS00;                           // frequency
 	DDRD |= 1<<5;
 	DDRD |= 1<<6;
 } // void pwm_init
@@ -52,14 +52,17 @@ int main (void) {
 	uart_init();
 	pwm_init();
 	puts_kai("Booted!");
-	_delay_ms(1);
+	_delay_ms(1000);
 	sei();
 	while(1) {
-		sample = adc_sample(0) / 4;
+		sample = adc_sample(1) / 4;
 		old = OCR0A;
 		if (sample < (old - HYST)) OCR0A--;
 		if (sample > (old + HYST)) OCR0A++;
+		if (sample < HYST) OCR0A = 0;
+		if (sample > 255-HYST)  OCR0A = 255;
 		_delay_ms(10);
+		printf_kai("s: %d  r: %d          \r", ADCW, OCR0A);
 	}
 } // int main
 
