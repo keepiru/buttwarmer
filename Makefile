@@ -95,7 +95,7 @@ size: ${TARGET}
 SERIAL = COM9
 
 flash: buttwarmer.hex
-	avrdude -y -P ${SERIAL} -cstk500v2 -pm168 -Uflash:w:buttwarmer.hex
+	avrdude -qq -y -P ${SERIAL} -cstk500v2 -pm168 -Uflash:w:buttwarmer.hex
 
 show:
 	avrdude -V -P ${SERIAL} -cstk500v2 -pm168 -v

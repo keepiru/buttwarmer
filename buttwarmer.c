@@ -38,10 +38,12 @@ inline void pwm_init(void) {
 	DDRD |= 1<<6;
 } // void pwm_init
 
-void adc_pin(uint8_t pin) {
+uint16_t adc_sample(uint8_t pin) {
         ADCSRA = 1<<ADEN | 1<<ADIE | 7 ; // 7 is the prescaler
         SMCR = 3 ;                       // Sleep mode ADC, enable
         ADMUX = (1<<REFS0) | pin ;        // ref = vcc
+	sleep_mode();
+	return ADCW;
 }
 
 int main (void) {
@@ -53,12 +55,11 @@ int main (void) {
 	_delay_ms(1);
 	sei();
 	while(1) {
-		sleep_mode();
-		sample = ADCW / 4;
+		sample = adc_sample(0) / 4;
 		old = OCR0A;
 		if (sample < (old - HYST)) OCR0A--;
 		if (sample > (old + HYST)) OCR0A++;
-		_delay_ms(100);
+		_delay_ms(10);
 	}
 } // int main
 
