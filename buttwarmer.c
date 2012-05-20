@@ -4,21 +4,23 @@
 #include <avr/sleep.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <util/atomic.h>
 #include <util/delay.h>
 
 #define printf_kai(fmt, ...) printf_P(PSTR(fmt) , ##__VA_ARGS__)
 #define puts_kai(str) puts_P(PSTR(str))
 
-#define HYST 3
+#define HYST 2
 
 ISR(ADC_vect, ISR_NAKED) { asm("reti"); }
+ISR(__vector_default) { puts_kai("beep"); }
 
 int putchr(char, FILE *);
 FILE mystdout = FDEV_SETUP_STREAM(putchr, NULL, _FDEV_SETUP_WRITE);
 
 inline void uart_init(void) {
-        UCSR0B |= 1<<TXEN0 | 1<<RXEN0 | 1<<RXCIE0; // Enable TX, RX, RX int
+        UCSR0B |= 1<<TXEN0 ; // Enable TX
         UBRR0L |= (F_CPU / (16 * 9600UL)) - 1;     // Set baud rate
 	stdout = &mystdout;
 } // void uart_init
@@ -33,36 +35,52 @@ int putchr(char c, FILE *stream) { // stdio.h wants this to be public
 
 inline void pwm_init(void) {
 	TCCR0A = 1<<COM0A1 | 1<<COM0B1 | 1<<WGM00 | 1<<WGM01; // PWM enable, mode
-	TCCR0B = 1<<CS00;                           // frequency
+	TCCR0B = 1<<CS00 | 1<<CS02;                           // frequency
 	DDRD |= 1<<5;
 	DDRD |= 1<<6;
 } // void pwm_init
 
-uint16_t adc_sample(uint8_t pin) {
+uint16_t adc_sample(uint8_t pin, uint8_t ref) {
         ADCSRA = 1<<ADEN | 1<<ADIE | 7 ; // 7 is the prescaler
         SMCR = 3 ;                       // Sleep mode ADC, enable
-        ADMUX = (1<<REFS0) | pin ;       // ref = vcc
+        ADMUX = ref | pin ;
 	sleep_mode();
 	return ADCW;
 }
 
-int main (void) {
+void update(uint8_t pin, uint8_t *port) {
 	int16_t old;
 	int16_t sample;
+	sample = adc_sample(pin, 1<<REFS0) / 4;
+	old = *port;
+	if ( abs(sample-old) > HYST ) {
+		*port = sample;
+		printf_kai("pin %d value %d\r\n", pin, sample);
+	}
+	if (sample < HYST) *port = 0;
+	if (sample > 255-HYST)  *port = 255;
+}
+
+
+void voltage(void) {
+	uint16_t v;
+	v = adc_sample(5, 1<<REFS0|1<<REFS1);
+	printf_kai("v:%d \r", v*11);
+}
+
+
+int main (void) {
 	uart_init();
 	pwm_init();
-	puts_kai("Booted!");
+	ADCSRA = 1<<ADEN | 1<<ADIE | 7 ;
+	printf_kai("Boot %x\r\n", MCUSR);
 	_delay_ms(1000);
 	sei();
 	while(1) {
-		sample = adc_sample(1) / 4;
-		old = OCR0A;
-		if (sample < (old - HYST)) OCR0A--;
-		if (sample > (old + HYST)) OCR0A++;
-		if (sample < HYST) OCR0A = 0;
-		if (sample > 255-HYST)  OCR0A = 255;
-		_delay_ms(10);
-		printf_kai("s: %d  r: %d          \r", ADCW, OCR0A);
+		update(1, &OCR0A);
+		update(2, &OCR0B);
+		voltage();
+		_delay_ms(200);
 	}
 } // int main
 
