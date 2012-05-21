@@ -12,6 +12,9 @@
 #define puts_kai(str) puts_P(PSTR(str))
 
 #define HYST 2
+#define DECAY_RATE 0.01
+#define VOLTS_PER_DIV 0.11
+#define VOLTS_SHUTDOWN 10.5
 
 ISR(ADC_vect, ISR_NAKED) { asm("reti"); }
 ISR(__vector_default) { puts_kai("beep"); }
@@ -73,11 +76,11 @@ void shutdown(void) { // set all outputs low and halt
 
 void monitor_voltage(void) { // sample voltage, maintain decaying average, shut down if too low
 	static float volts_avg;
-	uint16_t sample;
-	sample = adc_sample(5, 1<<REFS0|1<<REFS1) * 0.11; // 11 units per volt
-	volts_avg = (volts_avg * 0.99) + (sample * 0.01); // decaying average
-	printf_kai("v:%d %d\r", sample, volts_avg);
-	if (volts_avg < 10.50) shutdown();
+	float sample;
+	sample = adc_sample(5, 1<<REFS0|1<<REFS1) * VOLTS_PER_DIV;
+	volts_avg = (volts_avg * (1-DECAY_RATE)) + (sample * DECAY_RATE); // decaying average
+	printf_kai("v:%d %f\r", sample, volts_avg);
+	if (volts_avg < VOLTS_SHUTDOWN) shutdown();
 }
 
 int main (void) {
