@@ -48,7 +48,7 @@ uint16_t adc_sample(uint8_t pin, uint8_t ref) {
 	return ADCW;
 }
 
-void update(uint8_t pin, uint8_t *port) {
+void update(uint8_t pin, volatile uint8_t *port) {
 	int16_t old;
 	int16_t sample;
 	sample = adc_sample(pin, 1<<REFS0) / 4;
