@@ -32,7 +32,7 @@ ASMFLAGS += -x assembler-with-cpp -Wa,-gdwarf2
 ## Linker flags
 LDFLAGS = $(COMMON)
 LDFLAGS +=  -Wl,-Map=buttwarmer.map
-#-Wl,-u,vfprintf -lprintf_flt -lm
+LDFLAGS += -Wl,-u,vfprintf -lprintf_flt -lm
 LDFLAGS += -Wl,--relax
 
 # Useful to find unused functions
