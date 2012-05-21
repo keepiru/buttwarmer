@@ -14,7 +14,7 @@
 #define HYST 2
 #define DECAY_RATE 0.01
 #define MILLIVOLTS_PER_DIV 110
-#define MILLIVOLTS_SHUTDOWN 10500
+#define MILLIVOLTS_SHUTDOWN 10200
 
 ISR(ADC_vect, ISR_NAKED) { asm("reti"); }
 ISR(__vector_default) { puts_kai("beep"); }
@@ -65,9 +65,13 @@ void pwm_update(uint8_t pin, volatile uint8_t *port) { // Sample analog pin and 
 }
 
 void shutdown(void) { // set all outputs low and halt
+	puts_kai("Shutdown");
 	while (1) { 
 		OCR0A=0;
 		OCR0B=0;
+		TCCR0A = 0;
+		PORTD = 0;
+		_delay_ms(1000);
 		cli();
 		SMCR = 1<<SM1; // power-down
 		sleep_mode();
@@ -75,7 +79,7 @@ void shutdown(void) { // set all outputs low and halt
 }
 
 void monitor_voltage(void) { // sample voltage, maintain decaying average, shut down if too low
-	static uint16_t millivolts_avg;
+	static uint16_t millivolts_avg=13500;
 	uint16_t sample;
 	sample = adc_sample(5, 1<<REFS0|1<<REFS1) * MILLIVOLTS_PER_DIV;
 	millivolts_avg = (millivolts_avg * (1-DECAY_RATE)) + (sample * DECAY_RATE); // decaying average
