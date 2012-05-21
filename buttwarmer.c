@@ -72,12 +72,12 @@ void shutdown(void) { // set all outputs low and halt
 }
 
 void monitor_voltage(void) { // sample voltage, maintain decaying average, shut down if too low
-	static uint16_t centivolts;
+	static float volts_avg;
 	uint16_t sample;
-	sample = adc_sample(5, 1<<REFS0|1<<REFS1) * 11; // 11 units per 0.01 volt
-	centivolts = (centivolts * 0.99) + (sample * 0.01); // decaying average
-	printf_kai("v:%d %d\r", sample, centivolts);
-	if (centivolts < 1050) shutdown();
+	sample = adc_sample(5, 1<<REFS0|1<<REFS1) * 0.11; // 11 units per volt
+	volts_avg = (volts_avg * 0.99) + (sample * 0.01); // decaying average
+	printf_kai("v:%d %d\r", sample, volts_avg);
+	if (volts_avg < 10.50) shutdown();
 }
 
 int main (void) {
