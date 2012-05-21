@@ -61,13 +61,25 @@ void update(uint8_t pin, uint8_t *port) {
 	if (sample > 255-HYST)  *port = 255;
 }
 
-
-void voltage(void) {
-	uint16_t v;
-	v = adc_sample(5, 1<<REFS0|1<<REFS1);
-	printf_kai("v:%d \r", v*11);
+void shutdown(void) {
+	while (1) { 
+		OCR0A=0;
+		OCR0B=0;
+		cli();
+		SMCR = 1<<SM1; // power-down
+		sleep_mode();
+	}
 }
 
+
+void monitor_voltage(void) {
+	static uint16_t centivolts;
+	uint16_t sample;
+	sample = adc_sample(5, 1<<REFS0|1<<REFS1) * 11; // 11 units per 0.01 volt
+	centivolts = (centivolts * 0.99) + (sample * 0.01); // decaying average
+	printf_kai("v:%d %d\r", sample, centivolts);
+	if (centivolts < 1050) shutdown();
+}
 
 int main (void) {
 	uart_init();
@@ -79,7 +91,7 @@ int main (void) {
 	while(1) {
 		update(1, &OCR0A);
 		update(2, &OCR0B);
-		voltage();
+		monitor_voltage();
 		_delay_ms(200);
 	}
 } // int main
