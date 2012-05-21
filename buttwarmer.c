@@ -40,7 +40,7 @@ inline void pwm_init(void) {
 	DDRD |= 1<<6;
 } // void pwm_init
 
-uint16_t adc_sample(uint8_t pin, uint8_t ref) {
+uint16_t adc_sample(uint8_t pin, uint8_t ref) { // sample pin with reference voltage bitfield ref
         ADCSRA = 1<<ADEN | 1<<ADIE | 7 ; // 7 is the prescaler
         SMCR = 3 ;                       // Sleep mode ADC, enable
         ADMUX = ref | pin ;
@@ -48,7 +48,7 @@ uint16_t adc_sample(uint8_t pin, uint8_t ref) {
 	return ADCW;
 }
 
-void update(uint8_t pin, volatile uint8_t *port) {
+void pwm_update(uint8_t pin, volatile uint8_t *port) { // Sample analog pin and update PWM OCR on *port
 	int16_t old;
 	int16_t sample;
 	sample = adc_sample(pin, 1<<REFS0) / 4;
@@ -61,7 +61,7 @@ void update(uint8_t pin, volatile uint8_t *port) {
 	if (sample > 255-HYST)  *port = 255;
 }
 
-void shutdown(void) {
+void shutdown(void) { // set all outputs low and halt
 	while (1) { 
 		OCR0A=0;
 		OCR0B=0;
@@ -71,8 +71,7 @@ void shutdown(void) {
 	}
 }
 
-
-void monitor_voltage(void) {
+void monitor_voltage(void) { // sample voltage, maintain decaying average, shut down if too low
 	static uint16_t centivolts;
 	uint16_t sample;
 	sample = adc_sample(5, 1<<REFS0|1<<REFS1) * 11; // 11 units per 0.01 volt
@@ -89,8 +88,8 @@ int main (void) {
 	_delay_ms(1000);
 	sei();
 	while(1) {
-		update(1, &OCR0A);
-		update(2, &OCR0B);
+		pwm_update(1, &OCR0A);
+		pwm_update(2, &OCR0B);
 		monitor_voltage();
 		_delay_ms(200);
 	}
