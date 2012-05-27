@@ -14,7 +14,7 @@ COMMON = -mmcu=$(MCU)
 ## Compile options common for all C compilation units.
 CFLAGS = $(COMMON)
 CFLAGS += -Wextra -pedantic -Wformat=2
-CFLAGS += -Wall -gdwarf-2 -std=gnu99   -DF_CPU=8000000UL -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums
+CFLAGS += -Wall -gdwarf-2 -std=gnu99   -DF_CPU=1000000UL -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums
 CFLAGS += -MD -MP -MT $(*F).o -MF dep/$(@F).d
 CFLAGS += --param inline-call-cost=2 -finline-limit=3 -fno-inline-small-functions -mcall-prologues
 
@@ -103,7 +103,7 @@ show:
 
 fuse:
 	avrdude -O -P ${SERIAL} -cstk500v2 -pm168
-	avrdude -y -P ${SERIAL} -cstk500v2 -pm168 -U lfuse:w:0xE2:m -U hfuse:w:0xDF:m -U efuse:w:0x00:m 
+	avrdude -y -P ${SERIAL} -cstk500v2 -pm168 -U lfuse:w:0x62:m -U hfuse:w:0xDF:m -U efuse:w:0x00:m 
 
 readrom:
 	avrdude -y -P ${SERIAL} -cstk500v2 -pm168 -Ueeprom:r:rom.hex:h
