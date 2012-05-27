@@ -23,8 +23,10 @@ int putchr(char, FILE *);
 FILE mystdout = FDEV_SETUP_STREAM(putchr, NULL, _FDEV_SETUP_WRITE);
 
 inline void uart_init(void) {
-        UCSR0B |= 1<<TXEN0 ; // Enable TX
-        UBRR0L |= (F_CPU / (16 * 1200UL)) - 1;     // Set baud rate
+#define BAUD 1200
+#include <util/setbaud.h>
+        UBRR0 = UBRR_VALUE;
+	UCSR0B |= 1<<TXEN0 ; // Enable TX
 	stdout = &mystdout;
 } // void uart_init
 
