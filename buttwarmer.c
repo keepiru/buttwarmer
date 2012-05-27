@@ -13,7 +13,7 @@
 
 #define HYST 2
 #define DECAY_RATE 0.01
-#define MILLIVOLTS_PER_DIV 110
+#define MILLIVOLTS_PER_DIV 25
 #define MILLIVOLTS_SHUTDOWN 10200
 
 ISR(ADC_vect, ISR_NAKED) { asm("reti"); }
@@ -24,7 +24,7 @@ FILE mystdout = FDEV_SETUP_STREAM(putchr, NULL, _FDEV_SETUP_WRITE);
 
 inline void uart_init(void) {
         UCSR0B |= 1<<TXEN0 ; // Enable TX
-        UBRR0L |= (F_CPU / (16 * 9600UL)) - 1;     // Set baud rate
+        UBRR0L |= (F_CPU / (16 * 1200UL)) - 1;     // Set baud rate
 	stdout = &mystdout;
 } // void uart_init
 
@@ -37,28 +37,33 @@ int putchr(char c, FILE *stream) { // stdio.h wants this to be public
 } // void putchr
 
 inline void pwm_init(void) {
-	TCCR0A = 1<<COM0A1 | 1<<COM0B1 | 1<<WGM00 | 1<<WGM01; // PWM enable, mode
-	TCCR0B = 1<<CS00 | 1<<CS02;                           // frequency
-	DDRD |= 1<<5;
-	DDRD |= 1<<6;
+	TCCR0A = 1<<COM0A1 | 1<<COM0B1 | 1<<WGM00 ; // PWM enable, mode
+	TCCR1A = 1<<COM1A1 | 1<<COM1B1 | 1<<WGM10 ; // PWM enable, mode
+	TCCR0B = 1<<CS00 | 1<<CS01;                 // frequency
+	TCCR1B = 1<<CS10 | 1<<CS11;                 // frequency
+	TCNT1 = 0;
+	TCNT0 = 128;
+	DDRD |= 1<<5 | 1<<6;
+	DDRB |= 1<<1 | 1<<2;
 } // void pwm_init
 
 uint16_t adc_sample(uint8_t pin, uint8_t ref) { // sample pin with reference voltage bitfield ref
-        ADCSRA = 1<<ADEN | 1<<ADIE | 7 ; // 7 is the prescaler
+        ADCSRA = 1<<ADEN | 1<<ADIE | 4 ; // enable, int, prescaler
         SMCR = 3 ;                       // Sleep mode ADC, enable
         ADMUX = ref | pin ;
+	_delay_ms(10);
 	sleep_mode();
 	return ADCW;
 }
 
 void pwm_update(uint8_t pin, volatile uint8_t *port) { // Sample analog pin and update PWM OCR on *port
 	int16_t old;
-	int16_t sample;
+	uint16_t sample;
 	sample = adc_sample(pin, 1<<REFS0) / 4;
 	old = *port;
 	if ( abs(sample-old) > HYST ) {
 		*port = sample;
-		printf_kai("pin %d value %d\r\n", pin, sample);
+		//printf_kai("a%d>%d\r\n", pin, sample);
 	}
 	if (sample < HYST) *port = 0;
 	if (sample > 255-HYST)  *port = 255;
@@ -67,10 +72,9 @@ void pwm_update(uint8_t pin, volatile uint8_t *port) { // Sample analog pin and 
 void shutdown(void) { // set all outputs low and halt
 	puts_kai("Shutdown");
 	while (1) { 
-		OCR0A=0;
-		OCR0B=0;
-		TCCR0A = 0;
-		PORTD = 0;
+		OCR0A=OCR0B=OCR1A=OCR1B=TCCR0A=TCCR1A=PORTD=PORTB=0; // Shut down
+		DDRB |= 1<<7;
+		PORTB = 1<<7; // Error light
 		_delay_ms(1000);
 		cli();
 		SMCR = 1<<SM1; // power-down
@@ -83,20 +87,21 @@ void monitor_voltage(void) { // sample voltage, maintain decaying average, shut 
 	uint16_t sample;
 	sample = adc_sample(5, 1<<REFS0|1<<REFS1) * MILLIVOLTS_PER_DIV;
 	millivolts_avg = (millivolts_avg * (1-DECAY_RATE)) + (sample * DECAY_RATE); // decaying average
-	printf_kai("v:%d %d\r", sample, millivolts_avg);
+	printf_kai("v:%u %u\r", sample, millivolts_avg);
 	if (millivolts_avg < MILLIVOLTS_SHUTDOWN) shutdown();
 }
 
 int main (void) {
 	uart_init();
 	pwm_init();
-	ADCSRA = 1<<ADEN | 1<<ADIE | 7 ;
 	printf_kai("Boot %x\r\n", MCUSR);
 	_delay_ms(1000);
 	sei();
 	while(1) {
 		pwm_update(1, &OCR0A);
 		pwm_update(2, &OCR0B);
+		pwm_update(3, &OCR1AL);
+		pwm_update(4, &OCR1BL);
 		monitor_voltage();
 		_delay_ms(200);
 	}
