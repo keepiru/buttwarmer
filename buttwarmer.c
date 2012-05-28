@@ -74,7 +74,14 @@ void pwm_update(uint8_t pin, volatile uint8_t *port) { // Sample analog pin and 
 void shutdown(void) { // set all outputs low and halt
 	puts_kai("Shutdown");
 	while (1) { 
-		OCR0A=OCR0B=OCR1A=OCR1B=TCCR0A=TCCR1A=PORTD=PORTB=0; // Shut down
+		OCR0A=0;
+		OCR0B=0;
+		OCR1A=0;
+		OCR1B=0;
+		TCCR0A=0;
+		TCCR1A=0;
+		PORTD=0;
+		PORTB=0;
 		DDRB |= 1<<7;
 		PORTB = 1<<7; // Error light
 		_delay_ms(1000);
