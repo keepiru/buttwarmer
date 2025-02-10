@@ -123,7 +123,7 @@ int main (void) {
 	uart_init();
 	pwm_init();
 	printf_kai("Boot %x\r\n", MCUSR);
-	_delay_ms(1000);
+	_delay_ms(100);
 	sei();
 	while(1) {
 		pwm_update(1, 5, &OCR0A);
