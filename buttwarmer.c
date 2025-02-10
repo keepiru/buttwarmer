@@ -1,3 +1,8 @@
+/*
+ *  Buttwarmer controller
+ *
+ *  Copyright (C) 2012-2025  Chris "Kai" Frederick
+ */
 #include <avr/interrupt.h>
 #include <avr/io.h>
 #include <avr/pgmspace.h>
