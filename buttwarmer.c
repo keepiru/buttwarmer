@@ -93,8 +93,17 @@ uint16_t adc_sample(uint8_t pin, uint8_t ref) { // sample pin with reference vol
 void pwm_update(uint8_t pin, uint8_t lockout_pin, volatile uint8_t *port) {
 	int16_t old;
 	uint16_t knob, voltage;
-	knob = adc_sample(pin, 1<<REFS0) / 4;  // divide by 4 from 10-bit ADC to 8 bit PWM
+
+	// First check the voltage on the enable switch for this side.
 	voltage = adc_sample(lockout_pin, 1<<REFS0|1<<REFS1) * MILLIVOLTS_PER_DIV;
+	// If the switch for this side is off, ignore the knob positions and
+	// just disable this output.
+	if (voltage < MILLIVOLTS_OFF) {
+		*port = 0;
+		return;
+	}
+
+	knob = adc_sample(pin, 1<<REFS0) / 4;  // divide by 4 from 10-bit ADC to 8 bit PWM
 	old = *port;
 
 	// Add some hysteresis.  Ignore small changes.
@@ -106,10 +115,6 @@ void pwm_update(uint8_t pin, uint8_t lockout_pin, volatile uint8_t *port) {
 	// The deadband is the same size as the hysteresis width.
 	if (knob < HYST) *port = 0;
 	if (knob > 255-HYST)  *port = 255;
-
-	// If the switch for this side is off, ignore the knob positions and
-	// just disable this output.
-	if (voltage < MILLIVOLTS_OFF) *port = 0;
 }
 
 /*
