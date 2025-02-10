@@ -25,7 +25,7 @@ int putchr(char, FILE *);
 FILE mystdout = FDEV_SETUP_STREAM(putchr, NULL, _FDEV_SETUP_WRITE);
 
 inline void uart_init(void) {
-#define BAUD 1200
+#define BAUD 2400
 #include <util/setbaud.h>
 	OSCCAL = 0x89;
 	UBRR0 = UBRR_VALUE;
