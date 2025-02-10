@@ -10,11 +10,13 @@
 
 #define printf_kai(fmt, ...) printf_P(PSTR(fmt) , ##__VA_ARGS__)
 #define puts_kai(str) puts_P(PSTR(str))
+#define max(a, b) (((a) > (b)) ? (a) : (b))
 
 #define HYST 2
 #define DECAY_RATE 0.01
 #define MILLIVOLTS_PER_DIV 25
 #define MILLIVOLTS_SHUTDOWN 10200
+#define MILLIVOLTS_OFF 1000
 
 ISR(ADC_vect, ISR_NAKED) { asm("reti"); }
 ISR(__vector_default) { puts_kai("beep"); }
@@ -58,17 +60,26 @@ uint16_t adc_sample(uint8_t pin, uint8_t ref) { // sample pin with reference vol
 	return ADCW;
 }
 
-void pwm_update(uint8_t pin, volatile uint8_t *port) { // Sample analog pin and update PWM OCR on *port
+/*
+ * @brief Sample analog pin and update output PWM.
+ * @note This is the heart of the main loop.
+ * @param[in] pin The analog input pin to sample.  This is the pin connected to the potentiometer.
+ * @param[in] lockout_pin Power input sent through a voltage divider, used to measure battery level.
+ * @param[out] port Pointer to the PWM output register.
+ */
+void pwm_update(uint8_t pin, uint8_t lockout_pin, volatile uint8_t *port) {
 	int16_t old;
-	uint16_t sample;
-	sample = adc_sample(pin, 1<<REFS0) / 4;
+	uint16_t knob, voltage;
+	knob = adc_sample(pin, 1<<REFS0) / 4;
+	voltage = adc_sample(lockout_pin, 1<<REFS0|1<<REFS1) * MILLIVOLTS_PER_DIV;
 	old = *port;
-	if ( abs(sample-old) > HYST ) {
-		*port = sample;
+	if ( abs(knob-old) > HYST ) {
+		*port = knob;
 		//printf_kai("a%d>%d\r\n", pin, sample);
 	}
-	if (sample < HYST) *port = 0;
-	if (sample > 255-HYST)  *port = 255;
+	if (knob < HYST) *port = 0;
+	if (knob > 255-HYST)  *port = 255;
+	if (voltage < MILLIVOLTS_OFF) *port = 0;
 }
 
 void shutdown(void) { // set all outputs low and halt
@@ -94,7 +105,15 @@ void shutdown(void) { // set all outputs low and halt
 void monitor_voltage(void) { // sample voltage, maintain decaying average, shut down if too low
 	static uint16_t millivolts_avg=13500;
 	uint16_t sample;
-	sample = adc_sample(5, 1<<REFS0|1<<REFS1) * MILLIVOLTS_PER_DIV;
+	// Power is sourced from either seat circuit.  We monitor those
+	// independently because one may be switched off, making it look like
+	// the battery is dead.  High PWM levels also cause some voltage drop.
+	// Take the max of the two, since it's most likely to be an accurate
+	// read.
+	sample = max(
+		(adc_sample(5, 1<<REFS0|1<<REFS1) * MILLIVOLTS_PER_DIV),
+		(adc_sample(0, 1<<REFS0|1<<REFS1) * MILLIVOLTS_PER_DIV)
+	);
 	millivolts_avg = (millivolts_avg * (1-DECAY_RATE)) + (sample * DECAY_RATE); // decaying average
 	printf_kai("v:%u %u\r", sample, millivolts_avg);
 	if (millivolts_avg < MILLIVOLTS_SHUTDOWN) shutdown();
@@ -107,10 +126,10 @@ int main (void) {
 	_delay_ms(1000);
 	sei();
 	while(1) {
-		pwm_update(1, &OCR0A);
-		pwm_update(2, &OCR0B);
-		pwm_update(3, &OCR1AL);
-		pwm_update(4, &OCR1BL);
+		pwm_update(1, 5, &OCR0A);
+		pwm_update(2, 5, &OCR0B);
+		pwm_update(3, 0, &OCR1AL);
+		pwm_update(4, 0, &OCR1BL);
 		monitor_voltage();
 		_delay_ms(200);
 	}
